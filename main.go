@@ -69,33 +69,47 @@ func getAccessToken(code string) (string, error) {
 	return "", fmt.Errorf("access token not found")
 }
 
-func authHandler() events.APIGatewayProxyResponse {
-
-	log.Println("authHandler")
+func authHandler() events.LambdaFunctionURLResponse {
+	log.Println("Request for authHandler")
 	authURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&scope=repo,user", clientId)
-	return events.APIGatewayProxyResponse{
+	return events.LambdaFunctionURLResponse{
 		StatusCode: http.StatusFound,
 		Headers: map[string]string{
-			"Location": authURL,
+			"Location":                     authURL,
+			"Access-Control-Allow-Origin":  trustedOrigin,
+			"Access-Control-Allow-Headers": "Content-Type,Authorization",
+			"Access-Control-Allow-Methods": "GET,OPTIONS",
 		},
 	}
 }
 
-func callbackHandler(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	log.Println("callbackHandler")
+func callbackHandler(request events.LambdaFunctionURLRequest) events.LambdaFunctionURLResponse {
+	log.Println("Reuest for callbackHandler")
 	code := request.QueryStringParameters["code"]
 	if code == "" {
-		return events.APIGatewayProxyResponse{
+		return events.LambdaFunctionURLResponse{
 			StatusCode: http.StatusBadRequest,
 			Body:       "Code not found",
+			Headers: map[string]string{
+				"Content-Type":                 "text/plain",
+				"Access-Control-Allow-Origin":  trustedOrigin,
+				"Access-Control-Allow-Headers": "Content-Type,Authorization",
+				"Access-Control-Allow-Methods": "GET,OPTIONS",
+			},
 		}
 	}
 
 	token, err := getAccessToken(code)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
+		return events.LambdaFunctionURLResponse{
 			StatusCode: http.StatusInternalServerError,
 			Body:       "Error getting access token: " + err.Error(),
+			Headers: map[string]string{
+				"Content-Type":                 "text/plain",
+				"Access-Control-Allow-Origin":  trustedOrigin,
+				"Access-Control-Allow-Headers": "Content-Type,Authorization",
+				"Access-Control-Allow-Methods": "GET,OPTIONS",
+			},
 		}
 	}
 
@@ -129,7 +143,7 @@ func callbackHandler(request events.APIGatewayProxyRequest) events.APIGatewayPro
         </html>
     `, trustedOrigin, string(postMsgJSON))
 
-	return events.APIGatewayProxyResponse{
+	return events.LambdaFunctionURLResponse{
 		StatusCode: http.StatusOK,
 		Headers: map[string]string{
 			"Content-Type":                 "text/html",
@@ -141,12 +155,13 @@ func callbackHandler(request events.APIGatewayProxyRequest) events.APIGatewayPro
 	}
 }
 
-func rootHandler() events.APIGatewayProxyResponse {
-	log.Println("request for root Handler is not authorzied")
-	return events.APIGatewayProxyResponse{
+func rootHandler() events.LambdaFunctionURLResponse {
+	log.Println("Request for root handler")
+	return events.LambdaFunctionURLResponse{
 		StatusCode: http.StatusUnauthorized,
 		Body:       "Unauthorized",
 		Headers: map[string]string{
+			"Content-Type":                 "text/plain",
 			"Access-Control-Allow-Origin":  trustedOrigin,
 			"Access-Control-Allow-Headers": "Content-Type,Authorization",
 			"Access-Control-Allow-Methods": "GET,OPTIONS",
@@ -154,11 +169,13 @@ func rootHandler() events.APIGatewayProxyResponse {
 	}
 }
 
-func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	log.Printf("Request %s %s", request.HTTPMethod, request.Path)
+func handleRequest(ctx context.Context, request events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
+	log.Printf("Request %s %v", request.RequestContext.RequestID, request.RequestContext.HTTP)
 	// Handle OPTIONS requests for CORS
-	if request.HTTPMethod == "OPTIONS" {
-		return events.APIGatewayProxyResponse{
+	if strings.ToUpper(request.RequestContext.HTTP.Method) == "OPTIONS" {
+
+		log.Println("Handling OPTIONS request")
+		return events.LambdaFunctionURLResponse{
 			StatusCode: http.StatusOK,
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin":  trustedOrigin,
@@ -169,8 +186,9 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		}, nil
 	}
 
-	if request.HTTPMethod != "GET" {
-		return events.APIGatewayProxyResponse{
+	if strings.ToUpper(request.RequestContext.HTTP.Method) != "GET" {
+		log.Println("Request is not a GET")
+		return events.LambdaFunctionURLResponse{
 			StatusCode: http.StatusMethodNotAllowed,
 			Headers: map[string]string{
 				"Access-Control-Allow-Origin":  trustedOrigin,
@@ -181,7 +199,9 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 		}, nil
 	}
 
-	switch request.Path {
+	path := request.RequestContext.HTTP.Path
+
+	switch path {
 	case "/auth":
 		return authHandler(), nil
 	case "/callback":
@@ -189,10 +209,11 @@ func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 	case "/":
 		return rootHandler(), nil
 	default:
-		return events.APIGatewayProxyResponse{
+		return events.LambdaFunctionURLResponse{
 			StatusCode: http.StatusNotFound,
 			Body:       "Not Found",
 			Headers: map[string]string{
+				"Content-Type":                 "text/plain",
 				"Access-Control-Allow-Origin":  trustedOrigin,
 				"Access-Control-Allow-Headers": "Content-Type,Authorization",
 				"Access-Control-Allow-Methods": "GET,OPTIONS",
