@@ -9,8 +9,10 @@ LAMBDA_FUNCTION_NAME="madha-github-oauth2"
 # Get AWS account ID
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# Get GitHub SHA
-GIT_SHA=$(git rev-parse --short HEAD)
+# Get GitHub SHA from origin/main
+git fetch origin
+ORIGIN_SHA=$(git rev-parse --short origin/main)
+echo "Using origin/main SHA: ${ORIGIN_SHA}"
 
 # Create ECR repository if it doesn't exist
 echo "Checking ECR repository if it exist..."
@@ -22,12 +24,14 @@ aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS 
 
 # Build the Docker image
 echo "Building Docker image..."
-docker build -t ${ECR_REPOSITORY_NAME}:${GIT_SHA} .
+docker build -t ${ECR_REPOSITORY_NAME}:${ORIGIN_SHA} .
 
-# Tag the image
-echo "Tagging image with SHA: ${GIT_SHA}..."
-docker tag ${ECR_REPOSITORY_NAME}:${GIT_SHA} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:${GIT_SHA}
+# Tag the image with SHA and latest
+echo "Tagging image with origin SHA: ${ORIGIN_SHA}..."
+docker tag ${ECR_REPOSITORY_NAME}:${ORIGIN_SHA} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:${ORIGIN_SHA}
 
-# Push the image to ECR
-echo "Pushing image to ECR..."
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:${GIT_SHA}
+# Push the images to ECR
+echo "Pushing images to ECR..."
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY_NAME}:${ORIGIN_SHA}
+
+echo "Image pushed successfully with tags: ${ORIGIN_SHA}"

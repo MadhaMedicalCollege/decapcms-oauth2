@@ -155,20 +155,6 @@ func callbackHandler(request events.LambdaFunctionURLRequest) events.LambdaFunct
 	}
 }
 
-func rootHandler() events.LambdaFunctionURLResponse {
-	log.Println("Request for root handler")
-	return events.LambdaFunctionURLResponse{
-		StatusCode: http.StatusUnauthorized,
-		Body:       "Unauthorized",
-		Headers: map[string]string{
-			"Content-Type":                 "text/plain",
-			"Access-Control-Allow-Origin":  trustedOrigin,
-			"Access-Control-Allow-Headers": "Content-Type,Authorization",
-			"Access-Control-Allow-Methods": "GET,OPTIONS",
-		},
-	}
-}
-
 func handleRequest(ctx context.Context, request events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {
 	log.Printf("Request %s %v", request.RequestContext.RequestID, request.RequestContext.HTTP)
 	// Handle OPTIONS requests for CORS
@@ -206,9 +192,8 @@ func handleRequest(ctx context.Context, request events.LambdaFunctionURLRequest)
 		return authHandler(), nil
 	case "/callback":
 		return callbackHandler(request), nil
-	case "/":
-		return rootHandler(), nil
 	default:
+		log.Println("Unknown path")
 		return events.LambdaFunctionURLResponse{
 			StatusCode: http.StatusNotFound,
 			Body:       "Not Found",
