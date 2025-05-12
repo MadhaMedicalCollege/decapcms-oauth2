@@ -122,6 +122,7 @@ func callbackHandler(request events.LambdaFunctionURLRequest) events.LambdaFunct
 	script := fmt.Sprintf(`
         <html>
         <body>
+		<p>Authorizing into admin UI...</p>
         <script>
         (function() {
             function receiveMessage(e) {
@@ -134,6 +135,7 @@ func callbackHandler(request events.LambdaFunctionURLRequest) events.LambdaFunct
 				} else {
 					console.log("Origin not trusted", e.origin);
 				}
+                window.removeEventListener("message", receiveMessage, false);
             }
             window.addEventListener("message", receiveMessage, false);
             window.opener.postMessage("authorizing:github", "*");
