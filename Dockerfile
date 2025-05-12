@@ -1,8 +1,5 @@
 # Use a lightweight base image
-FROM golang:alpine
-
-# Create and use a non-root user
-RUN adduser -D -g '' appuser
+FROM golang:alpine AS build
 
 # Set the working directory
 WORKDIR /app
@@ -18,6 +15,28 @@ COPY . .
 
 # Build the application
 RUN go build -o decapcms-oauth2 .
+
+
+## Deploy
+FROM alpine:latest AS app
+
+# ssh is needed only if you want to use scp to copy later your pb_data locally
+RUN apk add --no-cache \
+    unzip \
+    ca-certificates \
+    openssh \
+    curl
+
+RUN update-ca-certificates
+
+# Create and use a non-root user
+RUN adduser -D -g '' appuser
+
+RUN mkdir /app
+
+WORKDIR /app
+
+COPY --from=build /app/decapcms-oauth2 /app/decapcms-oauth2
 
 # Change ownership of the application binary
 RUN chown appuser:appuser decapcms-oauth2
