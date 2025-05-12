@@ -155,6 +155,7 @@ func rootHandler() events.APIGatewayProxyResponse {
 }
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	log.Printf("Request %s %s", request.HTTPMethod, request.Path)
 	// Handle OPTIONS requests for CORS
 	if request.HTTPMethod == "OPTIONS" {
 		return events.APIGatewayProxyResponse{
