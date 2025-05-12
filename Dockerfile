@@ -14,8 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o decapcms-oauth2 .
-
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o decapcms-oauth2 .
 
 ## Deploy
 FROM alpine:latest AS app
